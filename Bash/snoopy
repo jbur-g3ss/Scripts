@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "@ not running as root, exiting..."
+  exit 1
+fi
+
+cat << EOF
+░░░░▄▄▄▄▄▓▓▓▄▄▄░░░░░
+░░░░▄▄▓▀▀▀▀▀▀▓▓▓▓▓▓▄░░░
+░░▄▄▓▀▀░░░░░░░░░░░░▀▓▄░
+░▐▓▓▌░░░░░░▄▄▄▄▄░░░░░▓▌
+░▐▓▒░░░░░░█░▒◐▒░█░░░░░▓
+░▓▓▌░░░░░░░▀▀▀▀▀░░░░░▒▓
+░▐▓░░░░░░░░░░░░░░░░▒▒▒▓
+█░▀▄░█▄█▀▄▄░▀░▀▄▄▀░░█░█
+░█░░░▀▄█▄█░█▀▄▄▄▄▄▀██░█
+░░█░░░░█░███▄█▄█▄███░░█
+░░░█░░░▀▀█░█▀█▀█▀███░█
+░░░░▀▄░░░░▀▀▄█▄█▄█▄▀░█
+░░░░░░▀▄▄░▒▒▒░░░░░░░░░█
+░░░░░░░░░▀▀▄▄▄▄▄▄▄▄▄▄▀
+EOF
+
+##############################################
+# Appearence
+##############################################
+
+RED=$(tput setaf 1)
+YELLOW=$(tput setaf 3)
+RESET=$(tput sgr0)
+MESSAGES=("${RED}[1] ${YELLOW}Setting up environment."
+          "${RED}[2] ${YELLOW}Copying files."
+          "${RED}[3] ${YELLOW}Compressing files."
+          "${RED}[4] ${YELLOW}Finalizing.")
+
+##############################################
+# Environment Setup
+##############################################
+
+echo -e "\n${MESSAGES[0]}"
+
+SOURCE_FOLDER="/usr/local/src/st/"
+
+DESTINATION_BASE="/tmp/snoopy"
+DESTINATION="$DESTINATION_BASE/$(date +"%y-%m-%d")"
+EXCLUDES="$DESTINATION_BASE/rsync.excludes"
+LOG="$DESTINATION_BASE/$(date +"%y-%m-%d").log"
+USER="$(id -un):$(id -u)"
+
+mkdir $DESTINATION_BASE 2> /dev/null && \
+  echo "@ $DESTINATION_BASE created" || \
+    echo -e "\n  @ ${RED}$DESTINATION_BASE already created. Ignoring..."
+
+mkdir $DESTINATION 2> /dev/null && \
+  echo "@ $DESTINATION created" || \
+    echo -e "  ${YELLOW}@ ${RED}$DESTINATION already, created. Ignoring...\n"
+
+chmod 700 $DESTINATION_BASE
+
+cat << EOF > $EXCLUDES
+ *--------------------------------------------*
+ * $0 
+ *
+ * Any files you wish to exclude from Rsync - 
+ * go below.
+ * 
+ * E.g, 
+ * file.txt
+ * /absolute/path/file.txt
+ * 
+ * -------------------------------------------*
+EOF
+
+sleep 1
+
+##############################################
+# Copy Files
+##############################################
+
+echo -e "${MESSAGES[1]}" 
+
+cat << EOF > $LOG
+ *--------------------------------------------*
+ * Specific Backup Started at $(date +"%H:%M:%S")
+ *
+ * Source:       $SOURCE_FOLDER
+ * Destination:  $DESTINATION
+ * Run As:       $USER
+ * Progam State: Copying Files    
+ * -------------------------------------------*
+
+EOF
+
+rsync -aAXvz  --log-file=$LOG --exclude-from=$EXCLUDES $SOURCE_FOLDER $DESTINATION | \
+  xargs -L1 printf "\33[2K\rTransferring: %s" 2>> $LOG || \
+    echo "\n  @ Error copying, please see $LOG for more details." 
+      
+
+sleep 1
+
+###########################################
+# Archive & Compress Files
+###########################################
+
+echo -e "\n${MESSAGES[2]}"
+
+cat << EOF >> $LOG
+
+ *--------------------------------------------*
+ * Program State: Archiving & Compressing
+ *--------------------------------------------*
+
+EOF
+
+cd $DESTINATION_BASE
+tar -cvPzf "${DESTINATION}.tar.gz" "$DESTINATION" | \
+  xargs -L1 printf "Archiving: %s\n" >> "$LOG" || \
+    echo "\n  @ Error compressing. Please see $LOG for more details." 
+
+bzip2 $DESTINATION.tar.gz 2> /dev/null || echo -e "\n  @ ${RED}Already compressed. Ignoring...\n"
+sleep 1
+
+cat << EOF >> $LOG
+
+ *-------------------------------------------------------*
+ * FINISHED
+ * 
+ * Before Compressing: 
+ * $(du -h "$DESTINATION".tar.gz)
+ * 
+ * Afer Compressing: 
+ * $(du -h $DESTINATION.tar.gz.bz2)
+ *-------------------------------------------------------*
+EOF
+
+###########################################
+# Finish
+###########################################
+
+echo -e "${MESSAGES[3]}"
