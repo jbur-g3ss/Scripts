@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# snoopy.sh 
+
+# A simple backup script which allows you to input your source directory/file and
+# copy to another location. Pretty much, a polished wrapper for Rsync.
+# You can specify your source file below in "SOURCE_FOLDER"
+
 if [ "$(id -u)" -ne 0 ]; then
   echo "@ not running as root, exiting..."
   exit 1
@@ -40,7 +46,7 @@ MESSAGES=("${RED}[1] ${YELLOW}Setting up environment."
 
 echo -e "\n${MESSAGES[0]}"
 
-SOURCE_FOLDER="/usr/local/src/st/"
+SOURCE_FOLDER=""
 
 DESTINATION_BASE="/tmp/snoopy"
 DESTINATION="$DESTINATION_BASE/$(date +"%y-%m-%d")"

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# woodstock.sh
+
+# Same as snoopy.sh, but without the option to specifically choose what you want
+# to backup. I use this for doing a full-metal backup.
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "@ not running as root, exiting..."
